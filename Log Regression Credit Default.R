@@ -1,11 +1,7 @@
-library(readr)
-library(gridExtra)
-library(ggplot2)
-library(ggeffects)
-library(modelr)
-library(car)
-library(lmtest)
-library(caret) ##trainControl e Confusion Matrix
+library(readr) 
+library(gridExtra) 
+library(ggplot2) 
+library(caret)
 
 data <- read_csv2("/Users/PedroGabriel/Documents/LIVROS/Data Science 17:11/R 03:11/Análise Macro/Módulo 5/Laboratório 5/default of credit card clients.csv")
 
