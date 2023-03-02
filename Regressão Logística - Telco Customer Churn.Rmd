@@ -1,0 +1,465 @@
+---
+title: "Lab04 - Previsão de Churn com Regressão Logística"
+author: Pedro Colangelo
+#date: "`r format(Sys.time(), '%d de %B, %Y')`"
+abstract: "A rotatividade de clientes ocorre quando clientes ou assinantes param de fazer negócios com uma empresa ou serviço, também conhecido como atrito com clientes. Também é referido como perda de clientes ou simplesmente *churn*. Um setor no qual as taxas de cancelamento são particularmente úteis é o setor de telecomunicações. Vamos prever a rotatividade de clientes usando um conjunto de dados de telecomunicações disponível no site da IBM, com base em um modelo de regressão logística."
+output: 
+  pdf_document:
+    #toc: true
+    #number_sections: true
+    includes:
+      in_header: header.tex
+geometry: margin=1in
+fontfamily: mathpazo
+fontsize: 11pt
+bibliography: 'references.bib'
+---
+
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+def.chunk.hook  <- knitr::knit_hooks$get("chunk")
+knitr::knit_hooks$set(chunk = function(x, options) {
+  x <- def.chunk.hook(x, options)
+  ifelse(options$size != "normalsize", paste0("\\", options$size,"\n\n", x, "\n\n \\normalsize"), x)
+})
+
+```
+
+\newpage
+
+# Introdução
+
+  O propósito deste laboratório é o de utilizar a capacidade preditiva de classificação da regressão logística para se criar um modelo que, baseado em determinadas características de cada indivíduo, possa definir a priori se este indivíduo irá "dar churn" (deixar de ser cliente da empresa).
+  
+  Como base, será utilizado um trabalho de laboratório anterior que teve como objeto de estudo a mesma base de dados ("Telco-Customer-Churn.csv") aqui utilizada. Nele, o trabalho da análise exploratória de dados (etapa determinante para admitir quais variáveis iriam ser escolhidas como preditores para o modelo de regressão logística) já foi realizado e será reproduzido na íntegra na seção seguinte do documento.
+  
+# Análise Exploratória de Dados
+
+## Importação das Bibliotecas Necessárias
+
+```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+library(ggplot2)
+library(gridExtra)
+library(readr)
+
+```
+
+## Importação dos Dados
+
+```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+dados <- read.csv('Telco-Customer-Churn.csv')
+
+```
+
+## Declaração das Variáveis
+
+```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+g1 <- ggplot(dados, aes(x = gender, fill = Churn))+
+  geom_bar(position = 'stack')
+  
+
+g2 <- ggplot(dados, aes(x = SeniorCitizen, fill = Churn))+
+  geom_bar(position = 'stack')
+  
+
+g3 <- ggplot(dados, aes(x = Partner, fill = Churn))+
+  geom_bar(position = 'stack')
+  
+
+g4 <- ggplot(dados, aes(x = Dependents, fill = Churn))+
+  geom_bar(position = 'stack')
+  
+
+g5 <- ggplot(dados, aes(x = PhoneService, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g6 <- ggplot(dados, aes(x = MultipleLines, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g7 <- ggplot(dados, aes(x = InternetService, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g8 <- ggplot(dados, aes(x = OnlineSecurity, fill = Churn))+
+  geom_bar(position = 'stack')
+  
+g9 <- ggplot(dados, aes(x = OnlineBackup, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g10 <- ggplot(dados, aes(x = DeviceProtection, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g11 <- ggplot(dados, aes(x = TechSupport, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g12 <- ggplot(dados, aes(x = StreamingTV, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g13 <- ggplot(dados, aes(x = StreamingMovies, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g14 <- ggplot(dados, aes(x = Contract, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g15 <- ggplot(dados, aes(x = PaperlessBilling, fill = Churn))+
+  geom_bar(position = 'stack')
+
+g16 <- ggplot(dados, aes(x = PaymentMethod, fill = Churn))+
+  geom_bar(position = 'stack')+
+  coord_flip()
+
+g17 <- ggplot(dados,
+       aes(x = Churn, 
+       y = tenure))+
+  geom_boxplot()+
+  labs(title = 'Distribuição de tempo como cliente por churn')
+
+g18 <- ggplot(dados,
+       aes(x = tenure,
+           fill = Churn))+
+  geom_density(alpha = 0.4)+
+  labs(title = 'Distribuição de tempo como cliente por churn')
+
+g19 <- ggplot(dados,
+       aes(x = Churn,
+           y = MonthlyCharges))+
+  geom_boxplot()+
+  labs(title = 'Distribuição de cobranças mensais por churn')
+
+g20 <- ggplot(dados,
+       aes(x = MonthlyCharges,
+           fill = Churn))+
+  geom_density(alpha = 0.4)+
+  labs(title = 'Distribuição de cobranças mensais por churn')
+
+g21 <- ggplot(dados, 
+       aes(x = Churn,
+           y = TotalCharges))+
+  geom_boxplot()+
+  labs(title = 'Distribuição de cobranças totais por churn')
+
+g22 <- ggplot(dados,
+       aes(x = TotalCharges,
+           fill = Churn))+
+  geom_density(alpha = 0.4)+
+  labs(title = 'Distribuição de cobranças totais por churn')
+
+```
+
+## Exibição dos Gráficos
+
+```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+grid.arrange(g1, g2, g3, g4)
+
+grid.arrange(g5, g6, g7, g8)
+
+grid.arrange(g8, g11)
+
+grid.arrange(g9, g10, g11, g12)
+
+grid.arrange(g13, g14, g15, g16)
+
+grid.arrange(g17, g18)
+
+grid.arrange(g19, g20)
+
+grid.arrange(g21, g22)
+
+
+```
+
+
+## Variáveis de Destaque na Análise Exploratória
+
+  Variáveis categóricas: (i) método de pagamento escolhido, (ii) tipo de contrato, (iii) suporte técnico e (iv) segurança online.
+  
+  Variáveis quantitativas: (v) tempo decorrido como cliente e (vi) cobranças mensais.
+  
+  Embora outras variáveis não mencionadas também aparentem possuir determinado grau de capacidade preditiva, estas seis foram as elencadas por aparentarem maior influência do que as demais. Como em um modelo é desejável que tomemos as escolhas mais parcimoniosas possíveis quanto à quantidade de preditores, iremos nos ater a estas seis variáveis apenas.
+  
+# Preparando os Dados para o Modelo
+
+## Importação das Bibliotecas Necessárias
+
+```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+library(caret)
+library(car)
+library(rcompanion)
+library(performance)
+library(OddsPlotty)
+library(ggthemes)
+library(ggplot2)
+
+```
+
+## Novo Dataset Contendo Apenas as Variáveis de Interesse
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+df_logistic <- data.frame(dados[,21],
+                          dados[,18],
+                          dados[,16],
+                          dados[,13],
+                          dados[,10],
+                          dados[,6],
+                          dados[,19])
+
+colnames(df_logistic) <- c('churn', 'payment_method',
+                           'contract', 'tech_support',
+                           'online_security', 'tenure',
+                           'monthly_charges')
+
+### Alteração dos factors da variável churn para
+### 0's e 1's
+
+df_logistic$churn <- ifelse(df_logistic$churn == 'Yes',
+                            1,
+                            0)
+
+### Converter variáveis que são factor mas contam como
+### character
+
+df_logistic[,c(1, 2, 3, 4, 5)] <- lapply(df_logistic[, c(1, 2, 3, 4, 5)],
+                                         as.factor)
+
+```
+
+# Implementação do Modelo
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Separação do dataset de treino para o dataset de 
+## teste na proporção de 75%-25% respectivamente usando
+## a função sample()
+
+### Setando uma seed para tornar o modelo replicável
+
+set.seed(123)
+
+split <- sort(sample(nrow(df_logistic), nrow(df_logistic)*0.75))
+
+training_set <- df_logistic[split,]
+testing_set <- df_logistic[-split,]
+
+## Padronização das variáveis contínuas do dataset
+## para que o modelo não se confunda por conta das
+## diferentes escalas
+
+training_set['tenure'] <- scale(training_set['tenure'])
+
+training_set['monthly_charges'] <- scale(training_set['monthly_charges'])
+
+testing_set['tenure'] <- scale(testing_set['tenure'])
+
+testing_set['monthly_charges'] <- scale(testing_set['monthly_charges'])
+
+## Declaração do modelo de regressão logística
+
+logit_churn <- glm(churn ~ ., data = training_set, 
+                   family = binomial(link = 'logit'))
+
+summary(logit_churn)
+
+## A partir do valor relevante dos z values e 
+## do p-valor significativo a 0,01% da maioria 
+## das variáveis, sugere-se que estas foram uma boa
+## escolha como preditores da variável dependente Churn
+
+```
+## Avaliar a Precisão do Modelo
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+### Prever os resultados do modelo logit_churn aplicado
+### ao testing_set
+
+predicted_values <- predict(logit_churn,
+                            newdata = testing_set,
+                            type = 'response')
+
+predicted_values <- ifelse(predicted_values > 0.5,
+                           1,
+                           0)
+
+true_values <- as.numeric(summary(predicted_values == testing_set$churn)[['TRUE']])
+
+accuracy <- true_values/nrow(testing_set)
+
+### A acurácia é de 80.47%
+
+```
+
+## Verificar Possíveis Violações de Premissas do Modelo de Regressão Logística
+
+### Linearidade dos Parâmetros
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Verificar a condição de linearidade entre as variáveis
+## contínuas e o log das chances do modelo utilizando
+## uma análise visual através de um gráfico de dispersão
+
+log_odds <- logit_churn$linear.predictors
+
+linearity_plot <- data.frame(log_odds = log_odds,
+                             tenure = training_set$tenure,
+                             monthly_charges = training_set$monthly_charges)
+
+ggplot_tenure <- ggplot(linearity_plot, aes(x = tenure, y = log_odds)) +
+  geom_point() +
+  geom_smooth(method = 'lm')
+
+ggplot_monthly_charges <- ggplot(linearity_plot, aes(x = monthly_charges, y = log_odds)) +
+  geom_point() +
+  geom_smooth(method = 'lm', formula = y ~ x + I(x^2))
+
+grid.arrange(ggplot_tenure, ggplot_monthly_charges)
+
+## Talvez uma outra especificação envolvendo
+## o quadrado da variável monthly_charges descreva
+## melhor essa relação não-linear
+
+```
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Nova especificação do modelo
+
+logit_churn2 <- glm(churn ~ payment_method + contract + tech_support + online_security + tenure + monthly_charges + I(monthly_charges^2),
+                    family = binomial(link = 'logit'),
+                    data = training_set)
+
+summary(logit_churn2)
+
+predicted_values2 <- predict(logit_churn2,
+                            newdata = testing_set,
+                           type = 'response')
+
+predicted_values2 <- ifelse(predicted_values2 > 0.5,
+                          1,
+                           0)
+
+true_values2 <- as.numeric(summary(predicted_values2 == testing_set$churn)[['TRUE']])
+
+accuracy2 <- true_values2/nrow(testing_set)
+
+## Acurácia de 81,26%
+
+```
+
+### Ausência de Multicolinearidade Perfeita
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Verificando se o grau de multicolinearidade
+## entre as variáveis representa um potencial 
+## problema para a nossa regressão logística,
+## um erro foi entregue. De fato deve haver variáveis
+## cujos valores se aproximam de uma multicolinearidade
+## perfeita. A checagem foi através de um erro da
+## função vif.default(), que não está sendo reprodu-
+## zido aqui por um erro ao tentar usar o knit
+## do R Markdown.
+
+
+```
+```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Vamos verificar com a função alias().
+
+alias(logit_churn2)
+
+## Foi detectada uma correlação alta entre 
+## as dummies "online_security" e "tech_support".
+## Vamos ter certeza analisando a estatística 
+## V's Cramer
+
+tb <- xtabs(~training_set$online_security + training_set$tech_support)
+
+cramerV(tb)
+
+## De fato, trata-se de uma correlação alta visto que 
+## 0.7302 se aproxima e muito de uma 
+## multicolinearidade perfeita (o valor 1). 
+## Vamos retirar a variável "online_security",
+## visto que anteriormente já tivemos um 
+## problema por um factor dele não estar presente
+## no conjunto de treino e o coeficiente resultante
+## ser NA.
+
+```
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Terceira especificação do modelo
+
+logit_churn3 <- glm(churn ~ payment_method + contract +
+                      tech_support + tenure + monthly_charges + I(monthly_charges^2),
+                    family = binomial(link = 'logit'),
+                    data = training_set)
+
+summary(logit_churn3)
+
+predicted_values3 <- predict(logit_churn3,
+                             newdata = testing_set,
+                             type = 'response')
+
+predicted_values3 <- ifelse(predicted_values3 > 0.5,
+                            1,
+                            0)
+
+true_values3 <- as.numeric(summary(predicted_values3 == testing_set$churn)[['TRUE']])
+
+accuracy3 <- true_values3/nrow(testing_set)
+
+accuracy3
+
+## Acurácia de 81,32%
+
+```
+
+### Ausência de Outliers Influentes
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+## Verificar se há outliers que possam estar sendo
+## demasiadamente influentes na calibração do nosso
+## modelo
+
+check_outliers(logit_churn3,
+               method = c('cook', 'iqr', 'zscore'))
+
+## Ausência de outliers influentes confirmada.
+
+```
+
+## Plotagem do Modelo
+
+```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
+
+logit_churn3_plot <- odds_plot(logit_churn3,
+                    title = 'Razão de Chances e Variáveis Independentes')
+
+plot <- logit_churn3_plot$odds_plot
+
+plot + ggthemes::theme_economist() + theme(axis.text.x = element_text(angle = 90)) + theme(axis.title.x = element_text(margin = margin(10, 0, 0, 0))) + theme(axis.title.y = element_text(margin = margin(0, 10, 0, 0))) + theme(axis.title = element_text(face = 'bold')) + theme(plot.title = element_text(size = 12, hjust = 4.5, margin = margin(0, 0, 10, 0)))
+
+```
+
+# Considerações Finais
+
+  Após três especificações do modelo, chegamos a uma versão final dele com um grau de acurácia aperfeiçoado em relação às especificações anteriores.
+  
+  A primeira especificação ocorreu utilizando seis variáveis preditivas: (i) "payment_method", (ii) "contract", (iii) "tech_support", (iv) "online_security", (v) "tenure" e (vi) "monthly_charges". 
+  
+  Julgou-se necessária uma alteração por conta da relação não linear existente entre os log odds e a variável preditiva "monthly_charges". Por isso, na segunda especificação, foi adotado um termo "I(monthly_charges^2)" para captar esta não linearidade.
+  
+  A terceira e última especificação procurou corrigir um problema de multicolinearidade próxima de perfeita entre duas variáveis: "tech_support" e "online_security". Como "online_security" chegou a apresentar alguns problemas por conta da forma com que foram separados os conjuntos de treino e de teste, ela foi a variável escolhida para ser removida.
+  
+  Ainda foi checada a possibilidade de outliers influentes estarem afetando os parâmetros do nosso modelo, mas para três tipos de teste diferentes (Cook's Distance, Interquartile Range e Z-Score), não foi detectado nenhum outlier de influência.
+  
+  Respectivamente, a acurácia dos três modelos foi de 80,47%, 81,26% e 81,32%.
