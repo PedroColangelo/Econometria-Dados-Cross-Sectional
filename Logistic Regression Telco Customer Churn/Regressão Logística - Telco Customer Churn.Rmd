@@ -325,6 +325,7 @@ grid.arrange(ggplot_tenure, ggplot_monthly_charges)
 ## melhor essa relação não-linear
 
 ```
+
 ```{r, echo=T, eval=T, fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
 
 ## Nova especificação do modelo
@@ -367,6 +368,7 @@ accuracy2 <- true_values2/nrow(testing_set)
 
 
 ```
+
 ```{r, echo=T, eval=T, results='asis', fig.width=8, fig.height=4, fig.align='center', out.width="1\\linewidth", warning=FALSE, message=FALSE, size='small'}
 
 ## Vamos verificar com a função alias().
